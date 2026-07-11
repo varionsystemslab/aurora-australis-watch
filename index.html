@@ -67,11 +67,10 @@
 
   <section class="panel email-panel">
     <h2>Email Alert</h2>
-    <p class="email-intro">This is the email that would go out for the most likely night currently in the outlook. Automated sending isn't wired up yet — see note below.</p>
+    <p class="email-intro">This is the alert for the most likely night currently in the outlook. Use the button below to send it manually right now.</p>
     <div id="email-preview" class="email-preview"></div>
     <p class="email-automation-note">
-      <strong>Automation status:</strong> no email-sending connector is currently authorized for this account, so this dashboard can't send mail on its own yet.
-      Once an email connector (e.g. Gmail) is connected, a daily scheduled check can send this automatically the moment a night crosses the threshold above.
+      <strong>Automation status:</strong> a <a href="https://github.com/varionsystemslab/aurora-australis-watch/actions/workflows/aurora-alert.yml" target="_blank" rel="noopener">daily GitHub Action</a> runs this same scoring at ~5pm Melbourne time. When the best upcoming night scores 55+, it opens an alert issue in the repo, and GitHub emails the notification automatically.
     </p>
   </section>
 

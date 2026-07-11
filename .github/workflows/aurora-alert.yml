@@ -1,0 +1,58 @@
+name: Aurora alert
+
+on:
+  schedule:
+    # 07:10 UTC = 17:10 AEST / 18:10 AEDT (Melbourne)
+    - cron: "10 7 * * *"
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Alert threshold (0-100); score at/above this opens an alert issue"
+        default: "55"
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install --no-save suncalc
+
+      - name: Compute aurora likelihood
+        id: check
+        run: node scripts/check-aurora.mjs
+        env:
+          ALERT_THRESHOLD: ${{ inputs.threshold || '55' }}
+
+      - name: Open alert issue (emails via GitHub notification)
+        if: steps.check.outputs.alert == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ steps.check.outputs.title }}
+          BODY: ${{ steps.check.outputs.body }}
+          NIGHT_DATE: ${{ steps.check.outputs.date }}
+        run: |
+          gh label create aurora-alert --color 9b6bff \
+            --description "Automated aurora likelihood alert" \
+            -R "$GITHUB_REPOSITORY" 2>/dev/null || true
+
+          existing=$(gh issue list -R "$GITHUB_REPOSITORY" --label aurora-alert --state all \
+            --search "$NIGHT_DATE in:title" --json number --jq length)
+          if [ "$existing" != "0" ]; then
+            echo "Alert issue for $NIGHT_DATE already exists — skipping duplicate."
+            exit 0
+          fi
+
+          gh issue create -R "$GITHUB_REPOSITORY" \
+            --title "$TITLE" \
+            --body "$BODY" \
+            --label aurora-alert \
+            --assignee varionsystemslab
