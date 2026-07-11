@@ -42,6 +42,14 @@ const LOCATIONS = [
     horizonBonus: 4
   },
   {
+    id: "williamstown-beach",
+    name: "Williamstown Beach",
+    lat: -37.871,
+    lon: 144.895,
+    note: "Inner-city bayside spot minutes from Melbourne; heavy CBD sky-glow means only strong displays (Kp 7+) are realistically visible.",
+    horizonBonus: 0
+  },
+  {
     id: "werribee-south",
     name: "Werribee South (beach / river mouth)",
     lat: -38.017,
