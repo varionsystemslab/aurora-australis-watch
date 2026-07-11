@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Aurora Australis Watch — Victoria</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="aurora-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="icon">🌌</span>
+    <span class="brand-text">Aurora Australis Watch</span>
+  </div>
+  <div class="brand-sub">Victoria, Australia</div>
+</header>
+
+<main>
+  <p id="status-banner" class="status-banner"></p>
+
+  <section class="panel right-now-panel">
+    <h2>Right Now</h2>
+    <div id="right-now" class="right-now"></div>
+  </section>
+
+  <section class="panel tonight-panel">
+    <h2>Tonight's Outlook</h2>
+    <div id="tonight" class="tonight"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Best Locations Tonight</h2>
+    <div id="location-ranking" class="location-ranking"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Multi-Night Forecast</h2>
+    <div class="forecast-controls">
+      <label>Location:
+        <select id="location-select"></select>
+      </label>
+      <label>Alert threshold:
+        <input type="number" id="threshold-input" min="0" max="100" step="5" />
+        <span class="hint">score at/above this triggers a 🔔</span>
+      </label>
+    </div>
+    <div class="table-scroll">
+      <table class="forecast-table">
+        <thead>
+          <tr>
+            <th>Night</th>
+            <th>Forecast Kp</th>
+            <th>Cloud</th>
+            <th>Moon</th>
+            <th>Score</th>
+            <th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody id="forecast-body"></tbody>
+      </table>
+    </div>
+    <p class="table-note">Kp beyond 3 nights comes from NOAA's daily 27-day outlook (lower resolution). Cloud cover beyond ~16 nights isn't forecastable yet and is treated as unknown.</p>
+  </section>
+
+  <section class="panel email-panel">
+    <h2>Email Alert</h2>
+    <p class="email-intro">This is the email that would go out for the most likely night currently in the outlook. Automated sending isn't wired up yet — see note below.</p>
+    <div id="email-preview" class="email-preview"></div>
+    <p class="email-automation-note">
+      <strong>Automation status:</strong> no email-sending connector is currently authorized for this account, so this dashboard can't send mail on its own yet.
+      Once an email connector (e.g. Gmail) is connected, a daily scheduled check can send this automatically the moment a night crosses the threshold above.
+    </p>
+  </section>
+
+  <section class="panel methodology-panel">
+    <h2>How this is scored</h2>
+    <p>Score = 70% geomagnetic activity (forecast Kp index) + 20% cloud cover + 10% moon brightness, plus a small bonus for locations with a dark, open southern horizon. Victorian latitudes (~37.5–39°S) typically need Kp 6+ for camera-visible aurora and Kp 7+ for a realistic naked-eye chance from most coastal spots — thresholds are approximate, not guaranteed.</p>
+    <p class="sources">Data: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA Space Weather Prediction Center</a> (Kp index, forecasts) and <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (cloud cover). Moon and darkness times via SunCalc.</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/score.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
