@@ -19,20 +19,124 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: var(--bg);
+  background: linear-gradient(180deg, #03060d 0%, #060b16 45%, #0a1120 100%);
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   position: relative;
 }
 
-.aurora-glow {
+/* Animated aurora background */
+.aurora-sky {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(ellipse 80% 40% at 20% -10%, rgba(61, 220, 151, 0.18), transparent 60%),
-    radial-gradient(ellipse 70% 35% at 80% 0%, rgba(155, 107, 255, 0.16), transparent 60%),
-    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(55, 198, 208, 0.10), transparent 60%);
+  overflow: hidden;
+}
+
+.stars {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.stars-far {
+  background-image:
+    radial-gradient(1px 1px at 25px 35px, rgba(231, 237, 247, 0.7), transparent),
+    radial-gradient(1px 1px at 110px 90px, rgba(231, 237, 247, 0.5), transparent),
+    radial-gradient(1px 1px at 190px 150px, rgba(231, 237, 247, 0.6), transparent),
+    radial-gradient(1px 1px at 240px 60px, rgba(231, 237, 247, 0.4), transparent),
+    radial-gradient(1px 1px at 70px 200px, rgba(231, 237, 247, 0.5), transparent);
+  background-size: 280px 240px;
+}
+
+.stars-near {
+  background-image:
+    radial-gradient(1.5px 1.5px at 60px 120px, rgba(231, 237, 247, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 320px 40px, rgba(215, 231, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 180px 220px, rgba(231, 237, 247, 0.85), transparent),
+    radial-gradient(1.5px 1.5px at 410px 170px, rgba(231, 237, 247, 0.7), transparent);
+  background-size: 460px 300px;
+  animation: star-twinkle 7s ease-in-out infinite alternate;
+}
+
+@keyframes star-twinkle {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+
+/* Aurora curtains: tall blurred gradient bands that sway and shimmer.
+   Kept in the upper ~60% of the viewport so panel text stays readable. */
+.aurora-curtain {
+  position: absolute;
+  top: -22%;
+  height: 70%;
+  width: 46%;
+  filter: blur(38px);
+  opacity: 0.7;
+  transform-origin: 50% 0%;
+  border-radius: 45%;
+  will-change: transform, opacity;
+}
+
+.curtain-1 {
+  left: -6%;
+  background: linear-gradient(178deg,
+    rgba(61, 220, 151, 0.65) 0%,
+    rgba(61, 220, 151, 0.35) 38%,
+    rgba(55, 198, 208, 0.18) 62%,
+    transparent 85%);
+  animation: curtain-sway-a 16s ease-in-out infinite alternate;
+}
+
+.curtain-2 {
+  left: 30%;
+  width: 40%;
+  background: linear-gradient(182deg,
+    rgba(55, 198, 208, 0.55) 0%,
+    rgba(61, 220, 151, 0.3) 40%,
+    rgba(155, 107, 255, 0.16) 65%,
+    transparent 85%);
+  animation: curtain-sway-b 21s ease-in-out infinite alternate;
+}
+
+.curtain-3 {
+  right: -8%;
+  background: linear-gradient(176deg,
+    rgba(155, 107, 255, 0.6) 0%,
+    rgba(122, 130, 255, 0.32) 35%,
+    rgba(61, 220, 151, 0.15) 65%,
+    transparent 85%);
+  animation: curtain-sway-c 18s ease-in-out infinite alternate;
+}
+
+@keyframes curtain-sway-a {
+  0%   { transform: skewX(-7deg) translateX(0) scaleY(1); opacity: 0.6; }
+  50%  { transform: skewX(3deg) translateX(4vw) scaleY(1.12); opacity: 0.85; }
+  100% { transform: skewX(-4deg) translateX(-2vw) scaleY(0.95); opacity: 0.65; }
+}
+
+@keyframes curtain-sway-b {
+  0%   { transform: skewX(5deg) translateX(0) scaleY(1.05); opacity: 0.55; }
+  50%  { transform: skewX(-6deg) translateX(-3vw) scaleY(1.18); opacity: 0.8; }
+  100% { transform: skewX(2deg) translateX(3vw) scaleY(0.92); opacity: 0.6; }
+}
+
+@keyframes curtain-sway-c {
+  0%   { transform: skewX(6deg) translateX(0) scaleY(0.95); opacity: 0.65; }
+  50%  { transform: skewX(-3deg) translateX(-4vw) scaleY(1.1); opacity: 0.88; }
+  100% { transform: skewX(5deg) translateX(2vw) scaleY(1); opacity: 0.62; }
+}
+
+/* Grounds the scene and dims the curtains behind lower-page content */
+.horizon-fade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: linear-gradient(180deg, transparent 0%, rgba(3, 6, 13, 0.85) 55%, #03060d 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-curtain, .stars-near { animation: none; }
 }
 
 .topbar {
@@ -83,7 +187,9 @@ main {
 }
 
 .panel {
-  background: var(--panel);
+  background: rgba(13, 22, 38, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--panel-border);
   border-radius: 14px;
   padding: 1.25rem 1.5rem 1.5rem;
