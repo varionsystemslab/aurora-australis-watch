@@ -77,14 +77,14 @@
     <p class="email-intro">This is the alert for the most likely night currently in the outlook. Use the button below to send it manually right now.</p>
     <div id="email-preview" class="email-preview"></div>
     <p class="email-automation-note">
-      <strong>Automation status:</strong> a <a href="https://github.com/varionsystemslab/aurora-australis-watch/actions/workflows/aurora-alert.yml" target="_blank" rel="noopener">daily GitHub Action</a> runs this same scoring at ~5pm Melbourne time. When the best upcoming night scores 55+, it opens an alert issue in the repo, and GitHub emails the notification automatically.
+      <strong>Automation status:</strong> a <a href="https://github.com/varionsystemslab/aurora-australis-watch/actions/workflows/aurora-alert.yml" target="_blank" rel="noopener">daily GitHub Action</a> runs this same scoring at ~5pm Melbourne time and emails via a repo issue when the best upcoming night scores 55+. It also checks the BOM Space Weather Service: an active <em>Aurora Watch</em> lowers the alert bar to 40, and an active <em>Aurora Alert</em> emails immediately regardless of score.
     </p>
   </section>
 
   <section class="panel methodology-panel">
     <h2>How this is scored</h2>
     <p>Score = 70% geomagnetic activity (forecast Kp index) + 20% cloud cover + 10% moon brightness, plus a small bonus for locations with a dark, open southern horizon. Victorian latitudes (~37.5–39°S) typically need Kp 6+ for camera-visible aurora and Kp 7+ for a realistic naked-eye chance from most coastal spots — thresholds are approximate, not guaranteed.</p>
-    <p class="sources">Data: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA Space Weather Prediction Center</a> (Kp index, forecasts) and <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (cloud cover). Moon and darkness times via SunCalc.</p>
+    <p class="sources">Data: <a href="https://www.swpc.noaa.gov/" target="_blank" rel="noopener">NOAA Space Weather Prediction Center</a> (Kp index, forecasts), <a href="https://sws.bom.gov.au/Aurora" target="_blank" rel="noopener">BOM Space Weather Service</a> (Australian K index, aurora alerts/watches/outlooks, refreshed hourly) and <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (cloud cover). Moon and darkness times via SunCalc.</p>
   </section>
 </main>
 

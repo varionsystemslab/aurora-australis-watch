@@ -1,0 +1,42 @@
+name: SWS status snapshot
+
+on:
+  schedule:
+    # Hourly at :20 — keeps the dashboard's BOM SWS panel fresh.
+    - cron: "20 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch SWS aurora products
+        env:
+          SWS_API_KEY: ${{ secrets.SWS_API_KEY }}
+        run: |
+          if [ -z "$SWS_API_KEY" ]; then
+            echo "SWS_API_KEY secret not configured — skipping snapshot publish."
+            echo "skip=true" >> "$GITHUB_ENV"
+          else
+            node scripts/fetch-sws.mjs
+          fi
+
+      - name: Publish sws.json to sws-data branch
+        if: env.skip != 'true'
+        run: |
+          dir=$(mktemp -d)
+          cp sws.json "$dir/"
+          cd "$dir"
+          git init -q -b sws-data
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              add sws.json
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "SWS status snapshot"
+          git push --force "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" sws-data

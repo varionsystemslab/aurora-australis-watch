@@ -19,7 +19,8 @@ Score = 70% geomagnetic activity (forecast Kp index) + 20% cloud cover + 10% moo
 ## Data sources
 
 - [NOAA Space Weather Prediction Center](https://www.swpc.noaa.gov/) — current Kp, 3-day forecast, 27-day outlook
+- [BOM Space Weather Service](https://sws.bom.gov.au/Aurora) — Australian-region K index and human-curated Aurora Alerts / Watches / Outlooks. The SWS API needs a key, so an hourly GitHub Action (`sws-status.yml`, key in the `SWS_API_KEY` repo secret) publishes a `sws.json` snapshot to the `sws-data` branch, which the dashboard reads. An active SWS Aurora **Watch** lowers the email-alert threshold to 40; an active **Alert** triggers the email immediately regardless of score.
 - [Open-Meteo](https://open-meteo.com/) — nightly cloud cover per location (~16-day horizon)
 - [SunCalc](https://github.com/mourner/suncalc) — moon illumination and astronomical darkness times
 
-Plain HTML/CSS/JS, no build step. All data is fetched client-side; no API keys required.
+Plain HTML/CSS/JS, no build step. NOAA and Open-Meteo data is fetched client-side with no keys; BOM SWS data arrives via the pre-fetched snapshot above.

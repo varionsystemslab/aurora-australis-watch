@@ -3,6 +3,7 @@ const DEFAULT_THRESHOLD = 55;
 
 const state = {
   currentKp: null,
+  sws: null, // BOM SWS snapshot (Kaus + notices), or null if unavailable
   outlooksByLocation: new Map(), // locationId -> nightly outlook array
   threshold: DEFAULT_THRESHOLD,
   selectedLocationId: LOCATIONS[0].id
@@ -28,12 +29,14 @@ async function init() {
   try {
     banner.textContent = "Fetching live space-weather and cloud-cover data…";
 
-    const [currentKp, threeDay, outlook27] = await Promise.all([
+    const [currentKp, threeDay, outlook27, sws] = await Promise.all([
       fetchCurrentKp(),
       fetchThreeDayForecast(),
-      fetchTwentySevenDayOutlook()
+      fetchTwentySevenDayOutlook(),
+      fetchSwsStatus() // resolves to null on failure, never throws
     ]);
     state.currentKp = currentKp;
+    state.sws = sws;
 
     const today = melbourneToday();
     // Fetched sequentially (not in parallel) to stay under Open-Meteo's burst rate limit.
@@ -60,15 +63,43 @@ function renderAll() {
   renderEmailPreview();
 }
 
+function swsStatusHtml() {
+  const sws = state.sws;
+  if (!sws) {
+    return `<div class="sws-status sws-none">BOM SWS status unavailable — showing NOAA data only.</div>`;
+  }
+  if (sws.alert) {
+    return `<div class="sws-status sws-alert">⚠ <strong>BOM Aurora ALERT active now</strong> — ${sws.alert.description || "aurora conditions occurring"} (lat band: ${sws.alert.lat_band || "?"}, valid until ${sws.alert.valid_until} AEST)</div>`;
+  }
+  if (sws.watch) {
+    return `<div class="sws-status sws-watch">👁 <strong>BOM Aurora Watch</strong> — ${sws.watch.start_date} to ${sws.watch.end_date} (${sws.watch.cause || "activity expected"})</div>`;
+  }
+  if (sws.outlook) {
+    return `<div class="sws-status sws-outlook">🔭 <strong>BOM Aurora Outlook</strong> — ${sws.outlook.start_date} to ${sws.outlook.end_date} (${sws.outlook.cause || "possible activity"})</div>`;
+  }
+  return `<div class="sws-status sws-quiet">BOM SWS: no active aurora notices</div>`;
+}
+
 function renderRightNow() {
   const el = document.getElementById("right-now");
   const { kp, time } = state.currentKp;
   const band = kpBand(kp);
+  const kaus = state.sws?.k_aus;
   el.innerHTML = `
-    <div class="kp-value">${kp.toFixed(2)}</div>
-    <div class="kp-label">Current planetary Kp index</div>
+    <div class="kp-duo">
+      <div class="kp-cell">
+        <div class="kp-value">${kp.toFixed(2)}</div>
+        <div class="kp-label">Planetary Kp (NOAA)</div>
+      </div>
+      ${kaus ? `
+      <div class="kp-cell">
+        <div class="kp-value">${kaus.index}</div>
+        <div class="kp-label">Australian K index (BOM)</div>
+      </div>` : ""}
+    </div>
     <div class="kp-band">${band.label}</div>
     <div class="kp-updated">Updated ${new Date(time.replace(" ", "T") + "Z").toLocaleString("en-AU", { timeZone: "Australia/Melbourne", dateStyle: "medium", timeStyle: "short" })} (Melbourne time)</div>
+    ${swsStatusHtml()}
   `;
 }
 

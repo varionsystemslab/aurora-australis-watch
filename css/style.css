@@ -218,6 +218,41 @@ main {
 .kp-band { margin-top: 0.6rem; font-size: 1rem; }
 .kp-updated { margin-top: 0.5rem; color: var(--text-dim); font-size: 0.8rem; }
 
+.kp-duo {
+  display: flex;
+  justify-content: center;
+  gap: 3rem;
+  flex-wrap: wrap;
+}
+
+.sws-status {
+  margin: 0.9rem auto 0;
+  max-width: 34rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  border: 1px solid var(--panel-border);
+  color: var(--text-dim);
+}
+
+.sws-alert {
+  color: #ffb4ab;
+  border-color: rgba(255, 107, 97, 0.5);
+  background: rgba(255, 107, 97, 0.12);
+}
+
+.sws-watch {
+  color: #ffd98e;
+  border-color: rgba(255, 190, 92, 0.45);
+  background: rgba(255, 190, 92, 0.1);
+}
+
+.sws-outlook {
+  color: #9fd8ff;
+  border-color: rgba(96, 180, 255, 0.4);
+  background: rgba(96, 180, 255, 0.08);
+}
+
 /* Tonight */
 .tonight { text-align: center; }
 .tonight-score {

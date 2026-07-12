@@ -115,6 +115,25 @@ async function fetchNightlyCloudCover(lat, lon, days = 16) {
   return avg;
 }
 
+// BOM SWS status snapshot (Australian K index + aurora alert/watch/outlook notices),
+// published hourly by the sws-status GitHub Action. The SWS API itself needs a key,
+// so the browser reads this pre-fetched snapshot instead. Returns null if unavailable.
+async function fetchSwsStatus() {
+  const urls = [
+    "sws.json", // local dev / same-origin copy, if present
+    "https://raw.githubusercontent.com/varionsystemslab/aurora-australis-watch/sws-data/sws.json?t=" + Date.now()
+  ];
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && data.available) return data;
+    } catch { /* try next source */ }
+  }
+  return null;
+}
+
 // Moon illumination fraction (0-1) and phase name for a given date, using SunCalc.
 function moonInfoFor(date) {
   const illum = SunCalc.getMoonIllumination(date);
