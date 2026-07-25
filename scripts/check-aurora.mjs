@@ -96,17 +96,35 @@ const driveNight = qualifying[0] || null;
 
 const bestHomeNight = [...homeOutlook].sort((a, b) => b.score - a.score)[0];
 const swsAlertActive = Boolean(sws?.alert);
-const alert = Boolean(driveNight) || swsAlertActive;
+const swsWatchActive = Boolean(sws?.watch);
+const alert = Boolean(driveNight) || swsAlertActive || swsWatchActive;
 
-console.log(`Home: ${home.name}. Drive threshold: Kp >= ${MIN_KP}.`);
+// Primary framing, most urgent first: a happening-now BOM Alert, then a Kp>=7 drive
+// night, then a BOM Watch heads-up. Any lower-priority signal still appears in the
+// body's BOM section, so one email covers everything active.
+const mode = swsAlertActive ? "sws-alert"
+  : driveNight ? "drive"
+  : swsWatchActive ? "watch"
+  : null;
+
+console.log(`Home: ${home.name}. Drive threshold: Kp >= ${MIN_KP}. Mode: ${mode || "no alert"}.`);
 console.log(driveNight
   ? `Drive-worthy night: ${driveNight.date} — Kp ${driveNight.kp} (${driveNight.kpPrecision}), score ${driveNight.score}/100.`
   : `No upcoming night reaches Kp ${MIN_KP} at ${home.name} (best is Kp ${bestHomeNight.kp} on ${bestHomeNight.date}).`);
 if (swsAlertActive) console.log("BOM SWS Aurora Alert is ACTIVE now — will email regardless of Kp.");
+if (swsWatchActive) console.log(`BOM SWS Aurora Watch active (${sws.watch.start_date} – ${sws.watch.end_date}) — will email a heads-up.`);
 
-// The night the email is about: the drive-worthy night, else (for an SWS-now alert) tonight.
-const eventNight = driveNight || homeOutlook.find(n => n.date === today) || bestHomeNight;
-const alertDate = driveNight ? driveNight.date : today;
+// The night the email is anchored on, and the per-event dedupe key (must appear in the title).
+const eventNight = mode === "drive"
+  ? driveNight
+  : mode === "watch"
+    ? (homeOutlook.find(n => n.date === sws.watch.start_date) || bestHomeNight)
+    : (homeOutlook.find(n => n.date === today) || bestHomeNight);
+const alertDate = mode === "drive"
+  ? driveNight.date
+  : mode === "watch"
+    ? "watch-" + sws.watch.start_date
+    : today;
 
 // Darkest-sky alternative for that same night (higher-scoring spot than home, if any).
 let alt = null;
@@ -142,13 +160,17 @@ if (alert) {
   const darkness = ctx.darknessWindowFor(new Date(eventNight.date + "T12:00:00"), home.lat, home.lon);
   const cloudStr = eventNight.cloudPct == null ? "no forecast yet" : Math.round(eventNight.cloudPct) + "%";
 
-  title = driveNight
-    ? `Aurora: Kp ${driveNight.kp} forecast ${fmtDate(driveNight.date)} — worth the drive (${driveNight.date})`
-    : `Aurora alert: BOM SWS alert ACTIVE now (${today})`;
-
-  const lead = driveNight
-    ? `Forecast conditions reach **Kp ${driveNight.kp}** — at or above your Kp ${MIN_KP} drive threshold.`
-    : `BOM's Space Weather Service has an **active Aurora Alert right now**.`;
+  let lead;
+  if (mode === "sws-alert") {
+    title = `Aurora alert: BOM SWS alert ACTIVE now (${today})`;
+    lead = `BOM's Space Weather Service has an **active Aurora Alert right now** — aurora may be visible from southern Victoria tonight.`;
+  } else if (mode === "drive") {
+    title = `Aurora: Kp ${driveNight.kp} forecast ${fmtDate(driveNight.date)} — worth the drive (${driveNight.date})`;
+    lead = `Forecast conditions reach **Kp ${driveNight.kp}** — at or above your Kp ${MIN_KP} drive threshold.`;
+  } else { // watch
+    title = `Aurora Watch (BOM): ${sws.watch.start_date} to ${sws.watch.end_date} (watch-${sws.watch.start_date})`;
+    lead = `BOM's Space Weather Service has issued an **Aurora Watch** for ${sws.watch.start_date} to ${sws.watch.end_date}${sws.watch.cause ? ` (${sws.watch.cause})` : ""} — a heads-up that conditions may become favourable. Keep an eye on the Kp forecast; nothing has yet reached your Kp ${MIN_KP} drive threshold.`;
+  }
 
   const altLine = alt
     ? `\n**Darker-sky option that night:** ${alt.loc.name} scores ${alt.night.score}/100 (vs ${eventNight.score} at ${home.name})${alt.night.cloudPct == null ? "" : `, ${Math.round(alt.night.cloudPct)}% cloud`}. Worth the extra drive if you want the best show.\n`
@@ -172,7 +194,7 @@ Face south toward an open, unobstructed horizon. Give your eyes 15–20 minutes 
 
 [Open the live dashboard](https://varionsystemslab.github.io/aurora-australis-watch/)
 
-_Automated alert from the daily aurora-alert workflow (drive threshold: Kp ≥ ${MIN_KP} at ${home.name}${swsAlertActive ? "; also triggered by active BOM SWS Aurora Alert" : ""})._`;
+_Automated alert from the daily aurora-alert workflow. Triggers: forecast Kp ≥ ${MIN_KP} at ${home.name}, an active BOM Aurora Alert, or an active BOM Aurora Watch._`;
 }
 
 if (process.env.GITHUB_OUTPUT) {
