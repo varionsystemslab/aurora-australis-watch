@@ -1,12 +1,13 @@
 const ALERT_RECIPIENT = "varionsystemslab@gmail.com";
-const DEFAULT_THRESHOLD = 55;
+const HOME_LOCATION_ID = "werribee-south"; // default drive spot
+const DEFAULT_DRIVE_KP = 7;                 // "worth the drive" naked-eye threshold
 
 const state = {
   currentKp: null,
   sws: null, // BOM SWS snapshot (Kaus + notices), or null if unavailable
   outlooksByLocation: new Map(), // locationId -> nightly outlook array
-  threshold: DEFAULT_THRESHOLD,
-  selectedLocationId: LOCATIONS[0].id
+  driveKp: DEFAULT_DRIVE_KP,
+  selectedLocationId: HOME_LOCATION_ID
 };
 
 function melbourneToday() {
@@ -103,21 +104,6 @@ function renderRightNow() {
   `;
 }
 
-// Restricted to nights with an actual cloud-cover forecast (~16 days out), so the
-// headline recommendation is never driven by the "unknown cloud" neutral default.
-function bestNightAcrossLocations() {
-  let best = null;
-  for (const [locId, outlook] of state.outlooksByLocation) {
-    for (const night of outlook) {
-      if (night.cloudPct == null) continue;
-      if (!best || night.score > best.score) {
-        best = { ...night, locationId: locId };
-      }
-    }
-  }
-  return best;
-}
-
 function renderTonight() {
   const today = melbourneToday();
   const el = document.getElementById("tonight");
@@ -178,34 +164,54 @@ function renderForecastTable() {
   const thresholdInput = document.getElementById("threshold-input");
   const tbody = document.getElementById("forecast-body");
 
-  tbody.innerHTML = outlook.map(n => `
-    <tr class="${n.score >= state.threshold ? "row-alert" : ""}">
+  tbody.innerHTML = outlook.map(n => {
+    const driveWorthy = n.kp >= state.driveKp;
+    return `
+    <tr class="${driveWorthy ? "row-alert" : ""}">
       <td>${fmtDate(n.date)}</td>
       <td>${n.kp} <span class="precision">(${n.kpPrecision})</span></td>
       <td>${n.cloudPct == null ? "—" : Math.round(n.cloudPct) + "%"}</td>
       <td>${Math.round(n.moon.fraction * 100)}%</td>
       <td class="${n.verdict.className}">${n.score}</td>
-      <td class="${n.verdict.className}">${n.verdict.label}${n.score >= state.threshold ? " 🔔" : ""}</td>
-    </tr>
-  `).join("");
+      <td class="${n.verdict.className}">${n.verdict.label}${driveWorthy ? " 🔔" : ""}</td>
+    </tr>`;
+  }).join("");
 
-  thresholdInput.value = state.threshold;
+  thresholdInput.value = state.driveKp;
 }
 
+// Anchored on the home location (Werribee). Emails when an upcoming night is forecast
+// to reach the Kp drive threshold; otherwise previews the best upcoming night and notes
+// that it's below the drive bar.
 function generateAlertEmail() {
-  const best = bestNightAcrossLocations();
-  const loc = LOCATIONS.find(l => l.id === best.locationId);
-  const darkness = darknessWindowFor(new Date(best.date + "T12:00:00"), loc.lat, loc.lon);
-  const subject = `Aurora Australis alert: ${best.verdict.label} chance on ${fmtDate(best.date)}`;
+  const home = LOCATIONS.find(l => l.id === HOME_LOCATION_ID);
+  const outlook = state.outlooksByLocation.get(home.id);
+  const qualifying = outlook
+    .filter(n => n.kp >= state.driveKp)
+    .sort((a, b) => b.kp - a.kp || b.score - a.score || a.date.localeCompare(b.date));
+  const driveNight = qualifying[0] || null;
+  const night = driveNight || [...outlook].sort((a, b) => b.score - a.score)[0];
+  const darkness = darknessWindowFor(new Date(night.date + "T12:00:00"), home.lat, home.lon);
+
+  const subject = driveNight
+    ? `Aurora: Kp ${driveNight.kp} forecast ${fmtDate(driveNight.date)} — worth the drive to Werribee`
+    : `Aurora outlook: no Kp ${state.driveKp}+ night yet (best Kp ${night.kp}, ${fmtDate(night.date)})`;
+
+  const lead = driveNight
+    ? `Forecast conditions reach Kp ${driveNight.kp} on ${fmtDate(driveNight.date)} — at or above your Kp ${state.driveKp} drive threshold.`
+    : `Nothing reaches your Kp ${state.driveKp} drive threshold in the current outlook. The best upcoming night at ${home.name} is below — shown here as a heads-up only.`;
+
   const body =
 `Aurora Australis Watch — Victoria
 
-Most likely night in the current outlook: ${fmtDate(best.date)}
-Likelihood score: ${best.score}/100 (${best.verdict.label})
-Best location: ${loc.name}
-Forecast Kp index: ${best.kp} (${best.kpPrecision}) — ${kpBand(best.kp).label}
-Cloud cover: ${best.cloudPct == null ? "no forecast yet" : Math.round(best.cloudPct) + "%"}
-Moon: ${best.moon.phaseName} (${Math.round(best.moon.fraction * 100)}% illuminated)
+${lead}
+
+Night: ${fmtDate(night.date)}
+Forecast Kp index: ${night.kp} (${night.kpPrecision}) — ${kpBand(night.kp).label}
+Your spot: ${home.name}
+Viewing score there: ${night.score}/100 (${night.verdict.label})
+Cloud cover: ${night.cloudPct == null ? "no forecast yet" : Math.round(night.cloudPct) + "%"}
+Moon: ${night.moon.phaseName} (${Math.round(night.moon.fraction * 100)}% illuminated)
 Dark viewing window: ${fmtTime(darkness.start)} - ${fmtTime(darkness.end)} (nautical dusk-dawn, Melbourne time)
 
 Face south toward an open, unobstructed horizon. Give your eyes 15-20 minutes to adjust to the dark, and check for a faint glow or coloured pillars low on the southern horizon — cameras (even phone night mode) often pick up colour the naked eye can't.
@@ -228,8 +234,10 @@ function renderEmailPreview() {
 }
 
 document.getElementById("threshold-input")?.addEventListener("change", e => {
-  state.threshold = parseInt(e.target.value, 10) || DEFAULT_THRESHOLD;
+  const v = parseInt(e.target.value, 10);
+  state.driveKp = Number.isFinite(v) ? Math.max(0, Math.min(9, v)) : DEFAULT_DRIVE_KP;
   renderForecastTable();
+  renderEmailPreview();
 });
 
 init();

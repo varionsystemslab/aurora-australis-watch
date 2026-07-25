@@ -6,9 +6,12 @@ on:
     - cron: "10 7 * * *"
   workflow_dispatch:
     inputs:
-      threshold:
-        description: "Alert threshold (0-100); score at/above this opens an alert issue"
-        default: "55"
+      min_kp:
+        description: "Drive threshold: email when forecast Kp reaches this or above (0-9)"
+        default: "7"
+      location:
+        description: "Home location id (default werribee-south)"
+        default: "werribee-south"
 
 permissions:
   issues: write
@@ -35,7 +38,8 @@ jobs:
         id: check
         run: node scripts/check-aurora.mjs
         env:
-          ALERT_THRESHOLD: ${{ inputs.threshold || '55' }}
+          ALERT_MIN_KP: ${{ inputs.min_kp || '7' }}
+          ALERT_LOCATION: ${{ inputs.location || 'werribee-south' }}
 
       - name: Open alert issue (emails via GitHub notification)
         if: steps.check.outputs.alert == 'true'

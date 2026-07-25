@@ -3,6 +3,10 @@
 // Reuses the dashboard's own browser scripts (js/data.js, js/api.js, js/score.js) by
 // evaluating them in a Node vm context, so the alert logic can never drift from what
 // the dashboard shows. Emits GitHub Actions outputs: alert, date, title, body.
+//
+// Alert policy (Joan's rule): email when an upcoming night is forecast to reach
+// Kp >= 7 — the "worth the drive" naked-eye threshold — anchored on her default
+// location, Werribee South. An active BOM SWS Aurora Alert also emails immediately.
 
 import fs from "node:fs";
 import vm from "node:vm";
@@ -29,10 +33,9 @@ const ctx = vm.runInContext(
   { filename: "dashboard-bundle.js" }
 );
 
-const BASE_THRESHOLD = parseInt(process.env.ALERT_THRESHOLD || "55", 10);
-// When BOM SWS has an active Aurora Watch, drop the bar: their forecasters
-// expect activity, so a moderate composite score is worth an email.
-const WATCH_THRESHOLD = 40;
+// The drive threshold and home location. Both overridable from the workflow.
+const MIN_KP = parseInt(process.env.ALERT_MIN_KP || "7", 10);
+const HOME_ID = process.env.ALERT_LOCATION || "werribee-south";
 
 // BOM SWS snapshot, produced by scripts/fetch-sws.mjs in a prior workflow step.
 // Optional: everything degrades to NOAA-only behaviour without it.
@@ -43,8 +46,6 @@ try {
 } catch {
   console.error("No sws.json — running NOAA-only.");
 }
-
-const THRESHOLD = sws?.watch ? Math.min(BASE_THRESHOLD, WATCH_THRESHOLD) : BASE_THRESHOLD;
 
 function melbourneToday() {
   return new Intl.DateTimeFormat("en-CA", {
@@ -66,37 +67,54 @@ function fmtTime(date) {
 }
 
 const today = melbourneToday();
+const home = ctx.LOCATIONS.find(l => l.id === HOME_ID) || ctx.LOCATIONS[0];
+
 const [threeDay, outlook27] = await Promise.all([
   ctx.fetchThreeDayForecast(),
   ctx.fetchTwentySevenDayOutlook()
 ]);
 
-// Best night = highest score among nights that have a real cloud forecast (~16 days out),
-// matching the dashboard's bestNightAcrossLocations().
-let best = null;
+// Build a per-night outlook for every location (needed for the "darker alternative" note);
+// the home location's outlook drives the trigger.
+const outlooks = new Map();
 for (const loc of ctx.LOCATIONS) {
   const cloudMap = await ctx.fetchNightlyCloudCover(loc.lat, loc.lon, 16);
-  const outlook = ctx.buildNightlyOutlook({ threeDay, outlook27, cloudMap, location: loc, today });
-  for (const night of outlook) {
-    if (night.cloudPct == null) continue;
-    if (!best || night.score > best.score) best = { ...night, loc };
-  }
+  outlooks.set(loc.id, ctx.buildNightlyOutlook({ threeDay, outlook27, cloudMap, location: loc, today }));
 }
-
-if (!best) {
-  console.error("No scored nights with cloud data — data sources may be down.");
+const homeOutlook = outlooks.get(home.id);
+if (!homeOutlook || !homeOutlook.length) {
+  console.error("No outlook for home location — data sources may be down.");
   process.exit(1);
 }
 
-console.log(`Best night: ${best.date} at ${best.loc.name} — score ${best.score}/100 (threshold ${THRESHOLD})`);
-if (sws?.watch) console.log(`SWS Aurora Watch active (${sws.watch.start_date} – ${sws.watch.end_date}) — threshold lowered to ${THRESHOLD}.`);
+// Drive-worthy nights: forecast Kp at/above the threshold. Pick the strongest show
+// (highest Kp, then best viewing score, then soonest).
+const qualifying = homeOutlook
+  .filter(n => n.kp >= MIN_KP)
+  .sort((a, b) => b.kp - a.kp || b.score - a.score || a.date.localeCompare(b.date));
+const driveNight = qualifying[0] || null;
 
-// A live SWS Aurora Alert means BOM forecasters say conditions are favourable
-// RIGHT NOW — email immediately, whatever the composite score says.
+const bestHomeNight = [...homeOutlook].sort((a, b) => b.score - a.score)[0];
 const swsAlertActive = Boolean(sws?.alert);
-const alert = swsAlertActive || best.score >= THRESHOLD;
-let title = "";
-let body = "";
+const alert = Boolean(driveNight) || swsAlertActive;
+
+console.log(`Home: ${home.name}. Drive threshold: Kp >= ${MIN_KP}.`);
+console.log(driveNight
+  ? `Drive-worthy night: ${driveNight.date} — Kp ${driveNight.kp} (${driveNight.kpPrecision}), score ${driveNight.score}/100.`
+  : `No upcoming night reaches Kp ${MIN_KP} at ${home.name} (best is Kp ${bestHomeNight.kp} on ${bestHomeNight.date}).`);
+if (swsAlertActive) console.log("BOM SWS Aurora Alert is ACTIVE now — will email regardless of Kp.");
+
+// The night the email is about: the drive-worthy night, else (for an SWS-now alert) tonight.
+const eventNight = driveNight || homeOutlook.find(n => n.date === today) || bestHomeNight;
+const alertDate = driveNight ? driveNight.date : today;
+
+// Darkest-sky alternative for that same night (higher-scoring spot than home, if any).
+let alt = null;
+for (const loc of ctx.LOCATIONS) {
+  if (loc.id === home.id) continue;
+  const n = outlooks.get(loc.id).find(x => x.date === eventNight.date);
+  if (n && (!alt || n.score > alt.night.score)) alt = { loc, night: n };
+}
 
 function swsSection() {
   if (!sws) return "";
@@ -117,33 +135,44 @@ function swsSection() {
   return `\n**BOM Space Weather Service (Australian region)**\n\n${lines.join("\n>\n")}\n`;
 }
 
-// The dedupe key: SWS-driven alerts key on today (the event is NOW), score-driven
-// alerts key on the best night.
-const alertDate = swsAlertActive ? today : best.date;
+let title = "";
+let body = "";
 
 if (alert) {
-  const darkness = ctx.darknessWindowFor(new Date(best.date + "T12:00:00"), best.loc.lat, best.loc.lon);
-  title = swsAlertActive
-    ? `Aurora alert: BOM SWS alert ACTIVE now (${alertDate})`
-    : `Aurora alert: ${best.verdict.label} chance on ${fmtDate(best.date)} (${best.date})`;
+  const darkness = ctx.darknessWindowFor(new Date(eventNight.date + "T12:00:00"), home.lat, home.lon);
+  const cloudStr = eventNight.cloudPct == null ? "no forecast yet" : Math.round(eventNight.cloudPct) + "%";
+
+  title = driveNight
+    ? `Aurora: Kp ${driveNight.kp} forecast ${fmtDate(driveNight.date)} — worth the drive (${driveNight.date})`
+    : `Aurora alert: BOM SWS alert ACTIVE now (${today})`;
+
+  const lead = driveNight
+    ? `Forecast conditions reach **Kp ${driveNight.kp}** — at or above your Kp ${MIN_KP} drive threshold.`
+    : `BOM's Space Weather Service has an **active Aurora Alert right now**.`;
+
+  const altLine = alt
+    ? `\n**Darker-sky option that night:** ${alt.loc.name} scores ${alt.night.score}/100 (vs ${eventNight.score} at ${home.name})${alt.night.cloudPct == null ? "" : `, ${Math.round(alt.night.cloudPct)}% cloud`}. Worth the extra drive if you want the best show.\n`
+    : "";
+
   body = `**Aurora Australis Watch — Victoria**
+
+${lead}
 
 | | |
 |---|---|
-| Most likely night | ${fmtDate(best.date)} |
-| Likelihood score | **${best.score}/100 (${best.verdict.label})** |
-| Best location | ${best.loc.name} |
-| Forecast Kp index | ${best.kp} (${best.kpPrecision}) — ${ctx.kpBand(best.kp).label} |
-| Cloud cover | ${Math.round(best.cloudPct)}% |
-| Moon | ${best.moon.phaseName} (${Math.round(best.moon.fraction * 100)}% illuminated) |
+| Night | ${fmtDate(eventNight.date)} |
+| Forecast Kp index | **${eventNight.kp}** (${eventNight.kpPrecision}) — ${ctx.kpBand(eventNight.kp).label} |
+| Your spot | ${home.name} |
+| Viewing score there | ${eventNight.score}/100 (${eventNight.verdict.label}) |
+| Cloud cover | ${cloudStr} |
+| Moon | ${eventNight.moon.phaseName} (${Math.round(eventNight.moon.fraction * 100)}% illuminated) |
 | Dark viewing window | ${fmtTime(darkness.start)} – ${fmtTime(darkness.end)} (nautical dusk–dawn, Melbourne time) |
-
-${swsSection()}
+${altLine}${swsSection()}
 Face south toward an open, unobstructed horizon. Give your eyes 15–20 minutes to adjust to the dark, and check for a faint glow or coloured pillars low on the southern horizon — cameras (even phone night mode) often pick up colour the naked eye can't.
 
 [Open the live dashboard](https://varionsystemslab.github.io/aurora-australis-watch/)
 
-_Automated alert from the daily aurora-alert workflow (threshold: ${THRESHOLD}${sws?.watch ? ", lowered by active SWS Aurora Watch" : ""}${swsAlertActive ? "; triggered by active BOM SWS Aurora Alert" : ""})._`;
+_Automated alert from the daily aurora-alert workflow (drive threshold: Kp ≥ ${MIN_KP} at ${home.name}${swsAlertActive ? "; also triggered by active BOM SWS Aurora Alert" : ""})._`;
 }
 
 if (process.env.GITHUB_OUTPUT) {

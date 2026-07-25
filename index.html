@@ -51,9 +51,9 @@
       <label>Location:
         <select id="location-select"></select>
       </label>
-      <label>Alert threshold:
-        <input type="number" id="threshold-input" min="0" max="100" step="5" />
-        <span class="hint">score at/above this triggers a 🔔</span>
+      <label>Drive if Kp ≥
+        <input type="number" id="threshold-input" min="0" max="9" step="1" />
+        <span class="hint">nights forecast at/above this Kp get a 🔔</span>
       </label>
     </div>
     <div class="table-scroll">
@@ -76,10 +76,10 @@
 
   <section class="panel email-panel">
     <h2>Email Alert</h2>
-    <p class="email-intro">This is the alert for the most likely night currently in the outlook. Use the button below to send it manually right now.</p>
+    <p class="email-intro">Anchored on <strong>Werribee South</strong>, the default drive spot. It flags the next night forecast to reach the drive threshold (Kp 7+); otherwise it previews the best upcoming night as a heads-up. Use the button below to send it manually.</p>
     <div id="email-preview" class="email-preview"></div>
     <p class="email-automation-note">
-      <strong>Automation status:</strong> a <a href="https://github.com/varionsystemslab/aurora-australis-watch/actions/workflows/aurora-alert.yml" target="_blank" rel="noopener">daily GitHub Action</a> runs this same scoring at ~5pm Melbourne time and emails via a repo issue when the best upcoming night scores 55+. It also checks the BOM Space Weather Service: an active <em>Aurora Watch</em> lowers the alert bar to 40, and an active <em>Aurora Alert</em> emails immediately regardless of score.
+      <strong>Automation status:</strong> a <a href="https://github.com/varionsystemslab/aurora-australis-watch/actions/workflows/aurora-alert.yml" target="_blank" rel="noopener">daily GitHub Action</a> runs this same scoring at ~5pm Melbourne time and emails via a repo issue when an upcoming night at Werribee South is forecast to reach <strong>Kp 7 or above</strong> — the naked-eye "worth the drive" threshold. An active BOM <em>Aurora Alert</em> emails immediately regardless of Kp.
     </p>
   </section>
 
