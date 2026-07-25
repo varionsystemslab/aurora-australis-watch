@@ -157,9 +157,47 @@ body {
 
 .brand .icon { font-size: 1.6rem; }
 
+.brand-mark {
+  height: 1.85rem;
+  width: auto;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(61, 220, 151, 0.25));
+}
+
 .brand-sub {
   color: var(--text-dim);
   font-size: 0.95rem;
+}
+
+.site-footer {
+  margin-top: 1.5rem;
+  padding: 2rem 1rem 0.5rem;
+  border-top: 1px solid var(--panel-border);
+  text-align: center;
+}
+
+.footer-brand {
+  display: inline-block;
+  transition: filter 0.2s ease, transform 0.2s ease;
+  filter: drop-shadow(0 0 10px rgba(61, 220, 151, 0.15));
+}
+
+.footer-brand:hover {
+  filter: drop-shadow(0 0 16px rgba(61, 220, 151, 0.35));
+  transform: translateY(-1px);
+}
+
+.footer-brand img {
+  width: 150px;
+  height: auto;
+  border-radius: 12px;
+}
+
+.footer-tagline {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  margin: 0.75rem auto 0;
+  max-width: 32rem;
 }
 
 main {
