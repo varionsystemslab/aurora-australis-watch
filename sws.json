@@ -1,0 +1,12 @@
+{
+  "available": true,
+  "fetched_at": "2026-09-15T21:31:07.636Z",
+  "k_aus": {
+    "index": 2,
+    "valid_time": "2026-09-15 21:00:00",
+    "analysis_time": "2026-09-15 21:29:27"
+  },
+  "alert": null,
+  "watch": null,
+  "outlook": null
+}
